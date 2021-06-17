@@ -6,17 +6,21 @@
 using namespace std;
 using namespace v8;
 
-HRESULT DecryptHelper(_In_reads_bytes_(cbData) BYTE* pbData, DWORD cbData, _In_ HCRYPTKEY hPrvKey, _Outptr_result_bytebuffer_(*pcbPlain) BYTE** ppbPlain, _Out_ DWORD* pcbPlain);
-HRESULT ReadFileToByteArray(_In_ PCWSTR pszPath, _Outptr_result_bytebuffer_(*pcbData) BYTE** ppbData, _Out_ DWORD* pcbData);
+HRESULT DecryptHelper(_In_reads_bytes_(cbData) BYTE *pbData, DWORD cbData, _In_ HCRYPTKEY hPrvKey, _Outptr_result_bytebuffer_(*pcbPlain) BYTE **ppbPlain, _Out_ DWORD *pcbPlain);
+HRESULT ReadFileToByteArray(_In_ PCWSTR pszPath, _Outptr_result_bytebuffer_(*pcbData) BYTE **ppbData, _Out_ DWORD *pcbData);
 
-__inline HRESULT ResultFromKnownLastError() { const DWORD err = GetLastError(); return err == ERROR_SUCCESS ? E_FAIL : HRESULT_FROM_WIN32(err); }
+__inline HRESULT ResultFromKnownLastError()
+{
+    const DWORD err = GetLastError();
+    return err == ERROR_SUCCESS ? E_FAIL : HRESULT_FROM_WIN32(err);
+}
 
 __inline HRESULT ResultFromWin32Bool(BOOL b)
 {
     return b ? S_OK : ResultFromKnownLastError();
 }
 
-HRESULT WriteByteArrayToFile(_In_ PCWSTR pszPath, _In_reads_bytes_(cbData) BYTE const* pbData, DWORD cbData)
+HRESULT WriteByteArrayToFile(_In_ PCWSTR pszPath, _In_reads_bytes_(cbData) BYTE const *pbData, DWORD cbData)
 {
     bool fDeleteFile = false;
     HANDLE hFile = CreateFile(pszPath, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -47,7 +51,7 @@ HRESULT UseSymmetricKeyFromFileToDecrypt(_In_ PCWSTR pszDataFilePath, _In_ PCWST
 
     if (SUCCEEDED(hr))
     {
-        BYTE* pbPrvBlob;
+        BYTE *pbPrvBlob;
         DWORD cbPrvBlob;
         hr = ReadFileToByteArray(pszPrivateKeyPath, &pbPrvBlob, &cbPrvBlob);
         if (SUCCEEDED(hr))
@@ -56,7 +60,7 @@ HRESULT UseSymmetricKeyFromFileToDecrypt(_In_ PCWSTR pszDataFilePath, _In_ PCWST
             hr = CryptImportKey(hProv, pbPrvBlob, cbPrvBlob, 0, 0, &hKey) ? S_OK : HRESULT_FROM_WIN32(GetLastError());
             if (SUCCEEDED(hr))
             {
-                BYTE* pbSymBlob;
+                BYTE *pbSymBlob;
                 DWORD cbSymBlob;
                 hr = ReadFileToByteArray(pszSessionKeyPath, &pbSymBlob, &cbSymBlob);
                 if (SUCCEEDED(hr))
@@ -66,12 +70,12 @@ HRESULT UseSymmetricKeyFromFileToDecrypt(_In_ PCWSTR pszDataFilePath, _In_ PCWST
                     hr = CryptImportKey(hProv, pbSymBlob, cbSymBlob, hKey, 0, &hSymKey) ? S_OK : HRESULT_FROM_WIN32(GetLastError());
                     if (SUCCEEDED(hr))
                     {
-                        BYTE* pbCipher;
+                        BYTE *pbCipher;
                         DWORD dwCipher;
                         hr = ReadFileToByteArray(pszDataFilePath, &pbCipher, &dwCipher);
                         if (SUCCEEDED(hr))
                         {
-                            BYTE* pbPlain;
+                            BYTE *pbPlain;
                             DWORD dwPlain;
                             hr = DecryptHelper(pbCipher, dwCipher, hSymKey, &pbPlain, &dwPlain);
                             if (SUCCEEDED(hr))
@@ -102,9 +106,9 @@ HRESULT UseSymmetricKeyFromFileToDecrypt(_In_ PCWSTR pszDataFilePath, _In_ PCWST
     return hr;
 }
 
-HRESULT DecryptHelper(_In_reads_bytes_(cbData) BYTE* pbData, DWORD cbData, _In_ HCRYPTKEY hPrvKey, _Outptr_result_bytebuffer_(*pcbPlain) BYTE** ppbPlain, _Out_ DWORD* pcbPlain)
+HRESULT DecryptHelper(_In_reads_bytes_(cbData) BYTE *pbData, DWORD cbData, _In_ HCRYPTKEY hPrvKey, _Outptr_result_bytebuffer_(*pcbPlain) BYTE **ppbPlain, _Out_ DWORD *pcbPlain)
 {
-    BYTE* pbCipher = reinterpret_cast<BYTE*>(HeapAlloc(GetProcessHeap(), 0, cbData));
+    BYTE *pbCipher = reinterpret_cast<BYTE *>(HeapAlloc(GetProcessHeap(), 0, cbData));
     HRESULT hr = (pbCipher != nullptr) ? S_OK : E_OUTOFMEMORY;
     if (SUCCEEDED(hr))
     {
@@ -112,11 +116,11 @@ HRESULT DecryptHelper(_In_reads_bytes_(cbData) BYTE* pbData, DWORD cbData, _In_ 
         DWORD cbPlain = cbData;
         memcpy(pbCipher, pbData, cbData);
         hr = ResultFromWin32Bool(CryptDecrypt(hPrvKey,
-            0,
-            TRUE,
-            0,
-            pbCipher,
-            &cbPlain));
+                                              0,
+                                              TRUE,
+                                              0,
+                                              pbCipher,
+                                              &cbPlain));
         if (SUCCEEDED(hr))
         {
             *ppbPlain = pbCipher;
@@ -124,10 +128,11 @@ HRESULT DecryptHelper(_In_reads_bytes_(cbData) BYTE* pbData, DWORD cbData, _In_ 
             pbCipher = nullptr;
         }
         HeapFree(GetProcessHeap(), 0, pbCipher);
-    }    return hr;
+    }
+    return hr;
 }
 
-HRESULT ReadFileToByteArray(_In_ PCWSTR pszPath, _Outptr_result_bytebuffer_(*pcbData) BYTE** ppbData, _Out_ DWORD* pcbData)
+HRESULT ReadFileToByteArray(_In_ PCWSTR pszPath, _Outptr_result_bytebuffer_(*pcbData) BYTE **ppbData, _Out_ DWORD *pcbData)
 {
     *ppbData = nullptr;
     *pcbData = 0;
@@ -139,7 +144,7 @@ HRESULT ReadFileToByteArray(_In_ PCWSTR pszPath, _Outptr_result_bytebuffer_(*pcb
         hr = (cbSize != INVALID_FILE_SIZE) ? S_OK : ResultFromKnownLastError();
         if (SUCCEEDED(hr))
         {
-            BYTE* pbData = reinterpret_cast<BYTE*>(CoTaskMemAlloc(cbSize));
+            BYTE *pbData = reinterpret_cast<BYTE *>(CoTaskMemAlloc(cbSize));
             hr = (pbData != nullptr) ? S_OK : E_OUTOFMEMORY;
             if (SUCCEEDED(hr))
             {
@@ -161,12 +166,12 @@ HRESULT ReadFileToByteArray(_In_ PCWSTR pszPath, _Outptr_result_bytebuffer_(*pcb
 
 NAN_METHOD(decrypt)
 {
-  UseSymmetricKeyFromFileToDecrypt(L"C:\\Users\\Kay\\Documents\\Microsoft OEM Activation 3.0\\OEM Registration Pages Files\\files\\user\\userdata.blob", L"C:\\Users\\Kay\\Documents\\Microsoft OEM Activation 3.0\\OEM Registration Pages Files\\files\\user\\sessionkey.blob", L"C:\\Users\\Kay\\Documents\\Microsoft OEM Activation 3.0\\OEM Registration Pages Files\\files\\user\\prvkey.blob");
+    UseSymmetricKeyFromFileToDecrypt(L"C:\\Users\\Kay\\Documents\\Microsoft OEM Activation 3.0\\OEM Registration Pages Files\\files\\user\\userdata.blob", L"C:\\Users\\Kay\\Documents\\Microsoft OEM Activation 3.0\\OEM Registration Pages Files\\files\\user\\sessionkey.blob", L"C:\\Users\\Kay\\Documents\\Microsoft OEM Activation 3.0\\OEM Registration Pages Files\\files\\user\\prvkey.blob");
 }
 
 NAN_MODULE_INIT(init)
 {
-  Nan::SetMethod(target, "decrypt", decrypt);
+    Nan::SetMethod(target, "decrypt", decrypt);
 }
 
 NODE_MODULE(decrypt, init);
