@@ -1,3 +1,4 @@
+
 #include <iostream>
 #include <WinSock2.h>
 #include <Windows.h>
@@ -40,7 +41,7 @@ HRESULT WriteByteArrayToFile(_In_ PCWSTR pszPath, _In_reads_bytes_(cbData) BYTE 
     return hr;
 }
 
-HRESULT UseSymmetricKeyFromFileToDecrypt(_In_ PCWSTR pszDataFilePath, _In_ PCWSTR pszSessionKeyPath, _In_ PCWSTR pszPrivateKeyPath)
+HRESULT UseSymmetricKeyFromFileToDecrypt(_In_ PCWSTR pszDataFilePath, _In_ PCWSTR pszSessionKeyPath, _In_ PCWSTR pszPrivateKeyPath, _In_ PCWSTR destPath)
 {
     HCRYPTPROV hProv;
     HRESULT hr = CryptAcquireContext(&hProv, L"OEMDecryptContainer", MS_ENH_RSA_AES_PROV, PROV_RSA_AES, CRYPT_NEWKEYSET) ? S_OK : HRESULT_FROM_WIN32(GetLastError());
@@ -80,7 +81,7 @@ HRESULT UseSymmetricKeyFromFileToDecrypt(_In_ PCWSTR pszDataFilePath, _In_ PCWST
                             hr = DecryptHelper(pbCipher, dwCipher, hSymKey, &pbPlain, &dwPlain);
                             if (SUCCEEDED(hr))
                             {
-                                hr = WriteByteArrayToFile(L"plaindata.xml", pbPlain, dwPlain);
+                                hr = WriteByteArrayToFile(destPath, pbPlain, dwPlain);
                                 HeapFree(GetProcessHeap(), 0, pbPlain);
                             }
                             HeapFree(GetProcessHeap(), 0, pbCipher);
@@ -164,14 +165,53 @@ HRESULT ReadFileToByteArray(_In_ PCWSTR pszPath, _Outptr_result_bytebuffer_(*pcb
     return hr;
 }
 
-NAN_METHOD(decrypt)
+std::wstring s2ws(const std::string &s)
 {
-    UseSymmetricKeyFromFileToDecrypt(L"C:\\Users\\Kay\\Documents\\Microsoft OEM Activation 3.0\\OEM Registration Pages Files\\files\\user\\userdata.blob", L"C:\\Users\\Kay\\Documents\\Microsoft OEM Activation 3.0\\OEM Registration Pages Files\\files\\user\\sessionkey.blob", L"C:\\Users\\Kay\\Documents\\Microsoft OEM Activation 3.0\\OEM Registration Pages Files\\files\\user\\prvkey.blob");
+    int len;
+    int slength = (int)s.length() + 1;
+    len = MultiByteToWideChar(CP_ACP, 0, s.c_str(), slength, 0, 0);
+    wchar_t *buf = new wchar_t[len];
+    MultiByteToWideChar(CP_ACP, 0, s.c_str(), slength, buf, len);
+    std::wstring r(buf);
+    delete[] buf;
+    return r;
 }
 
-NAN_MODULE_INIT(init)
+void decrypt(const Nan::FunctionCallbackInfo<v8::Value> &args)
 {
-    Nan::SetMethod(target, "decrypt", decrypt);
+    Isolate *isolate = args.GetIsolate();
+
+    v8::String::Utf8Value str(isolate, args[0]);
+    std::string cppStr(*str);
+    std::wstring stemp = s2ws(cppStr);
+    PCWSTR result = stemp.c_str();
+
+    v8::String::Utf8Value str1(isolate, args[1]);
+    std::string cppStr1(*str1);
+    std::wstring stemp1 = s2ws(cppStr1);
+    PCWSTR result2 = stemp1.c_str();
+
+    v8::String::Utf8Value str2(isolate, args[2]);
+    std::string cppStr2(*str2);
+    std::wstring stemp2 = s2ws(cppStr2);
+    PCWSTR result3 = stemp2.c_str();
+
+    v8::String::Utf8Value str3(isolate, args[3]);
+    std::string cppStr3(*str3);
+    std::wstring stemp3 = s2ws(cppStr3);
+    PCWSTR result4 = stemp3.c_str();
+
+    UseSymmetricKeyFromFileToDecrypt(result, result2, result3, result4);
 }
 
-NODE_MODULE(decrypt, init);
+void Init(v8::Local<v8::Object> exports)
+{
+    v8::Local<v8::Context> context = exports->CreationContext();
+    exports->Set(context,
+                 Nan::New("decrypt").ToLocalChecked(),
+                 Nan::New<v8::FunctionTemplate>(decrypt)
+                     ->GetFunction(context)
+                     .ToLocalChecked());
+}
+
+NODE_MODULE(decrypt, Init)
